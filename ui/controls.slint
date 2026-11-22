@@ -1,0 +1,239 @@
+// The controls. Each is at least 44 px to hit, shows keyboard focus, and never changes size with state.
+
+import { Theme } from "theme.slint";
+
+export component PlayButton inherits Rectangle {
+    in property <bool> playing;
+    in property <bool> enabled: true;
+    in property <bool> show-focus;
+    in property <color> tone;
+    callback activated;
+
+    width: Theme.play;
+    height: Theme.play;
+    accessible-role: button;
+    accessible-label: root.playing ? "Pause" : "Play";
+    accessible-enabled: root.enabled;
+    accessible-action-default => { root.activated(); }
+
+    Rectangle {
+        visible: scope.has-focus && root.show-focus;
+        width: parent.width + 2 * Theme.s1;
+        height: self.width;
+        border-radius: self.width / 2;
+        border-width: Theme.focus;
+        border-color: Theme.ink;
+    }
+    Rectangle {
+        width: 100%;
+        height: 100%;
+        border-radius: self.width / 2;
+        background: !root.enabled ? Theme.track : touch.pressed ? root.tone.darker(18%) : touch.has-hover ? root.tone.brighter(10%) : root.tone;
+    }
+    // Both icons share one box, so the swap can't shift anything.
+    Path {
+        width: 26px;
+        height: 26px;
+        viewbox-width: 24;
+        viewbox-height: 24;
+        fill: root.enabled ? Theme.on-tone : Theme.quiet;
+        commands: root.playing ? "M 6 3 L 10 3 L 10 21 L 6 21 Z M 14 3 L 18 3 L 18 21 L 14 21 Z" : "M 7 3 L 21 12 L 7 21 Z";
+    }
+    scope := FocusScope {
+        enabled: root.enabled;
+        focus-on-click: false;
+        key-pressed(event) => {
+            if event.text == Key.Space || event.text == Key.Return {
+                if !event.repeat {
+                    root.activated();
+                }
+                return accept;
+            }
+            return reject;
+        }
+    }
+    touch := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        // `clicked` fires on release inside, so sliding off cancels.
+        clicked => { root.activated(); }
+    }
+}
+
+export component Slider inherits Rectangle {
+    in property <int> value;
+    in property <int> maximum: 100;
+    in property <int> step: 1;
+    in property <bool> enabled: true;
+    in property <bool> show-focus;
+    in property <color> tone;
+    in property <string> label;
+    in property <string> value-text;
+    out property <bool> dragging;
+    out property <int> preview;
+    out property <int> shown: root.dragging ? root.preview : root.value;
+    // While dragging.
+    callback previewed(int);
+    // On release, or from a key.
+    callback committed(int);
+
+    property <length> span: max(1px, root.width - Theme.thumb);
+    property <float> part: root.maximum > 0 ? clamp(root.shown / root.maximum, 0, 1) : 0;
+    property <bool> cancelled;
+
+    height: Theme.hit;
+    accessible-role: slider;
+    accessible-label: root.label;
+    accessible-value: root.value-text;
+    accessible-enabled: root.enabled;
+    accessible-value-minimum: 0;
+    accessible-value-maximum: root.maximum;
+    accessible-action-increment => { root.committed(min(root.maximum, root.value + root.step)); }
+    accessible-action-decrement => { root.committed(max(0, root.value - root.step)); }
+
+    function at-pointer() -> int {
+        return round(clamp((touch.mouse-x - Theme.thumb / 2) / root.span, 0, 1) * root.maximum);
+    }
+    public function cancel() -> bool {
+        if root.dragging {
+            root.dragging = false;
+            root.cancelled = true;
+            root.previewed(root.value);
+            return true;
+        }
+        return false;
+    }
+
+    Rectangle {
+        visible: scope.has-focus && root.show-focus;
+        width: 100%;
+        height: Theme.s6;
+        border-radius: Theme.radius-small;
+        border-width: Theme.focus;
+        border-color: Theme.ink;
+    }
+    Rectangle {
+        x: Theme.thumb / 2;
+        width: root.span;
+        height: Theme.line;
+        border-radius: self.height / 2;
+        background: Theme.track;
+    }
+    Rectangle {
+        x: Theme.thumb / 2;
+        width: root.span * root.part;
+        height: Theme.line;
+        border-radius: self.height / 2;
+        background: root.enabled ? root.tone : Theme.track;
+    }
+    Rectangle {
+        visible: root.enabled;
+        x: root.span * root.part;
+        width: Theme.thumb;
+        height: self.width;
+        border-radius: self.width / 2;
+        background: touch.has-hover || root.dragging ? #ffffff : Theme.ink;
+    }
+    scope := FocusScope {
+        enabled: root.enabled;
+        focus-on-click: false;
+        key-pressed(event) => {
+            if event.text == Key.LeftArrow {
+                root.committed(max(0, root.value - root.step));
+                return accept;
+            }
+            if event.text == Key.RightArrow {
+                root.committed(min(root.maximum, root.value + root.step));
+                return accept;
+            }
+            return reject;
+        }
+    }
+    touch := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            if event.button == PointerEventButton.left {
+                if event.kind == PointerEventKind.down {
+                    root.cancelled = false;
+                    root.preview = root.at-pointer();
+                    root.dragging = true;
+                    root.previewed(root.preview);
+                } else if event.kind == PointerEventKind.up && root.dragging {
+                    root.preview = root.at-pointer();
+                    root.dragging = false;
+                    root.committed(root.preview);
+                }
+            }
+            if event.kind == PointerEventKind.cancel {
+                root.cancel();
+            }
+        }
+        moved => {
+            if root.dragging && !root.cancelled {
+                root.preview = root.at-pointer();
+                root.previewed(root.preview);
+            }
+        }
+    }
+}
+
+export component SoundsButton inherits Rectangle {
+    in property <bool> expanded;
+    in property <bool> show-focus;
+    callback activated;
+
+    width: Theme.sounds-width;
+    height: Theme.hit;
+    accessible-role: button;
+    accessible-label: "Sounds";
+    accessible-expandable: true;
+    accessible-expanded: root.expanded;
+    accessible-action-default => { root.activated(); }
+
+    Rectangle {
+        visible: scope.has-focus && root.show-focus;
+        width: 100%;
+        height: 100%;
+        border-radius: Theme.radius-small;
+        border-width: Theme.focus;
+        border-color: Theme.ink;
+    }
+    Text {
+        x: parent.width - Theme.s3 - 2 * Theme.s2 - self.width;
+        text: "Sounds";
+        font-family: Theme.body;
+        font-size: Theme.label-size;
+        color: touch.has-hover || root.expanded ? Theme.ink : Theme.quiet;
+    }
+    Path {
+        x: parent.width - Theme.s3 - self.width;
+        width: 10px;
+        height: 6px;
+        viewbox-width: 10;
+        viewbox-height: 6;
+        fill: touch.has-hover || root.expanded ? Theme.ink : Theme.quiet;
+        commands: root.expanded ? "M 0 6 L 5 0 L 10 6 Z" : "M 0 0 L 10 0 L 5 6 Z";
+    }
+    scope := FocusScope {
+        focus-on-click: false;
+        key-pressed(event) => {
+            if event.text == Key.Space || event.text == Key.Return {
+                if !event.repeat {
+                    root.activated();
+                }
+                return accept;
+            }
+            return reject;
+        }
+    }
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        // A disclosure opens on press. Actions wait for release.
+        pointer-event(event) => {
+            if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                root.activated();
+            }
+        }
+    }
+}

@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Version=1.5
+Name=Lull
+GenericName=Focus Sound Player
+Comment=Play calm, looping focus sounds
+Exec="@BIN@"
+TryExec=@BIN@
+Icon=lull
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+Keywords=focus;rain;noise;music;sound;ambient;
+StartupNotify=true
+StartupWMClass=lull
+SingleMainWindow=true

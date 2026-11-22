@@ -1,0 +1,57 @@
+// Every colour, size and position the window uses. Components hold no raw values.
+
+export global Theme {
+    out property <color> ground: #090d0a;
+    out property <color> ink: #f2f6ec;
+    out property <color> quiet: #b8c2ac;
+    out property <color> track: #262a26;
+    out property <color> raised: #141a15;
+    out property <color> row: #202820;
+    out property <color> row-hover: #29332a;
+    out property <color> edge: #2e3826;
+    out property <color> on-tone: #080b07;
+
+    out property <string> display: "Barlow Condensed";
+    out property <string> body: "Inter";
+    out property <string> mono: "IBM Plex Mono";
+    out property <length> title-size: 30px;
+    out property <length> mark-size: 18px;
+    out property <length> body-size: 16px;
+    out property <length> label-size: 14px;
+    out property <length> time-size: 13px;
+    out property <int> medium: 500;
+
+    // 4 px steps.
+    out property <length> s1: 4px;
+    out property <length> s2: 8px;
+    out property <length> s3: 12px;
+    out property <length> s6: 24px;
+    out property <length> hit: 44px;
+    out property <length> row-height: 48px;
+    out property <length> play: 64px;
+    out property <length> thumb: 14px;
+    out property <length> line: 4px;
+    out property <length> radius: 12px;
+    out property <length> radius-small: 8px;
+    out property <length> focus: 2px;
+
+    // The layout from the HTML prototype. Nothing here depends on state, so nothing can move.
+    out property <length> width: 360px;
+    out property <length> height: 540px;
+    out property <length> mark-top: 22px;
+    out property <length> ring-left: 30px;
+    out property <length> ring-top: 18px;
+    out property <length> ring-size: 300px;
+    out property <length> title-top: 310px;
+    out property <length> detail-top: 352px;
+    out property <length> sounds-top: 305px;
+    out property <length> sounds-width: 92px;
+    out property <length> seek-top: 371px;
+    out property <length> time-top: 408px;
+    out property <length> play-top: 448px;
+    out property <length> volume-left: 112px;
+    out property <length> volume-label-top: 456px;
+    out property <length> volume-top: 472px;
+    out property <length> sheet-bottom: 300px;
+    out property <int> sheet-rows: 4;
+}

@@ -1,0 +1,130 @@
+// The Sounds list. It floats over the ring, so opening it moves nothing.
+
+import { Theme } from "theme.slint";
+
+export struct SoundRow {
+    name: string,
+    detail: string,
+    length: string,
+    current: bool,
+    playable: bool,
+}
+
+export component SoundsSheet inherits Rectangle {
+    in property <[SoundRow]> sounds;
+    in property <color> tone;
+    in property <bool> show-focus;
+    in-out property <int> cursor;
+    callback chosen(int);
+
+    property <int> rows: max(1, min(Theme.sheet-rows, root.sounds.length));
+    property <length> pitch: Theme.row-height + Theme.s1;
+
+    width: Theme.width - 2 * Theme.s3;
+    height: root.rows * root.pitch + Theme.hit;
+    background: Theme.raised;
+    border-radius: Theme.radius;
+    border-width: 1px;
+    border-color: Theme.edge;
+    accessible-role: list;
+    accessible-label: "Sounds";
+
+    public function reveal() {
+        scroller.content-y = min(0px, -(root.cursor - root.rows + 1) * root.pitch);
+    }
+
+    // Swallows presses between rows, which would otherwise close the list.
+    TouchArea { }
+    if root.sounds.length == 0: Text {
+        x: 2 * Theme.s3 - Theme.s1;
+        y: Theme.s2;
+        height: Theme.hit;
+        vertical-alignment: center;
+        text: "No sounds yet";
+        font-family: Theme.body;
+        font-size: Theme.body-size;
+        color: Theme.ink;
+    }
+    scroller := Flickable {
+        x: Theme.s2;
+        y: Theme.s2;
+        width: parent.width - 2 * Theme.s2;
+        height: root.rows * root.pitch;
+        content-height: root.sounds.length * root.pitch;
+        interactive: root.sounds.length > root.rows;
+        for sound[index] in root.sounds: Rectangle {
+            y: index * root.pitch;
+            width: scroller.width;
+            height: Theme.row-height;
+            border-radius: Theme.radius-small;
+            background: touch.has-hover && sound.playable ? Theme.row-hover : Theme.row;
+            border-width: Theme.focus;
+            border-color: root.show-focus && index == root.cursor ? Theme.ink : transparent;
+            accessible-role: list-item;
+            accessible-label: sound.detail == "" ? sound.name : sound.name + ", " + sound.detail;
+            accessible-item-selected: sound.current;
+            accessible-enabled: sound.playable;
+            accessible-action-default => { root.chosen(index); }
+
+            // The current one has a mark as well as being first to read: colour is never the only sign.
+            if sound.current: Path {
+                x: Theme.s3;
+                width: 12px;
+                height: 10px;
+                viewbox-width: 12;
+                viewbox-height: 10;
+                stroke: root.tone;
+                stroke-width: 2px;
+                commands: "M 1 5 L 4.5 8.5 L 11 1.5";
+            }
+            Text {
+                x: 2 * Theme.s3 + Theme.s2;
+                y: sound.detail == "" ? (parent.height - self.height) / 2 : Theme.s1;
+                width: parent.width - self.x - length-text.width - 2 * Theme.s3;
+                text: sound.name;
+                overflow: elide;
+                wrap: no-wrap;
+                font-family: Theme.body;
+                font-size: Theme.body-size;
+                color: sound.playable ? Theme.ink : Theme.quiet;
+            }
+            if sound.detail != "": Text {
+                x: 2 * Theme.s3 + Theme.s2;
+                y: parent.height - self.height - Theme.s1;
+                width: parent.width - self.x - length-text.width - 2 * Theme.s3;
+                text: sound.detail;
+                overflow: elide;
+                wrap: no-wrap;
+                font-family: Theme.body;
+                font-size: Theme.time-size;
+                color: Theme.quiet;
+            }
+            length-text := Text {
+                x: parent.width - Theme.s3 - self.width;
+                height: parent.height;
+                vertical-alignment: center;
+                text: sound.length;
+                font-family: Theme.body;
+                font-size: Theme.label-size;
+                color: Theme.quiet;
+            }
+            touch := TouchArea {
+                enabled: sound.playable;
+                mouse-cursor: pointer;
+                clicked => { root.chosen(index); }
+            }
+        }
+    }
+    Text {
+        x: 2 * Theme.s3 - Theme.s1;
+        y: parent.height - Theme.hit + Theme.s1;
+        height: Theme.hit - Theme.s2;
+        vertical-alignment: center;
+        width: parent.width - 2 * self.x;
+        overflow: elide;
+        text: root.sounds.length == 0 ? "Add .opus files to ~/Music." : "More appear as you add them to ~/Music.";
+        font-family: Theme.body;
+        font-size: Theme.label-size;
+        color: Theme.quiet;
+    }
+}

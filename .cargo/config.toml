@@ -1,0 +1,4 @@
+# x86-64-v3 (AVX2, 2013 and newer) lets the compiler vectorise the pixel, FFT and gain loops.
+# Lull is built on the PC it runs on. Remove this before shipping binaries for older machines.
+[target.'cfg(target_arch = "x86_64")']
+rustflags = ["-C", "target-cpu=x86-64-v3"]

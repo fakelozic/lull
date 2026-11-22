@@ -1,0 +1,49 @@
+[package]
+name = "lull"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.92"
+publish = false
+description = "A small, calm player for focus sounds"
+
+[dependencies]
+ksni = { version = "0.3.7", default-features = false, features = ["async-io", "blocking"] }
+libc = "0.2"
+libloading = "0.9"
+serde_json = "1"
+signal-hook = { version = "0.4", default-features = false }
+slint = { version = "1.19", default-features = false, features = ["std", "compat-1-2", "backend-winit", "renderer-software", "unstable-winit-030"] }
+zbus = { version = "5.19.0", default-features = false, features = ["async-io", "blocking-api"] }
+
+[lints.rust]
+missing_docs = "warn"
+unsafe_op_in_unsafe_fn = "deny"
+
+# No panic=abort yet: an audio-thread crash must still let main save and restore the terminal.
+# The ring loop and the mixer are hot. Everything else is built small.
+[profile.release.package.lull]
+opt-level = 3
+
+# Slint's blitter copies every pixel of the ring 30 times a second. It is generic, so the winit
+# backend is where it gets compiled.
+[profile.release.package.i-slint-renderer-software]
+opt-level = 3
+
+[profile.release.package.i-slint-backend-winit]
+opt-level = 3
+
+[profile.release]
+opt-level = "s"
+lto = "thin"
+codegen-units = 1
+# Symbols stay so a crash in the log names its functions. They are never loaded into RAM.
+strip = "debuginfo"
+
+[build-dependencies]
+slint-build = "1.19"
+
+# Bounds how much memory one D-Bus message can take: vendor/zbus/LULL-PATCH.md.
+[patch.crates-io]
+zbus = { path = "vendor/zbus" }
+# Bounds the tray's token queue: vendor/ksni/LULL-PATCH.md.
+ksni = { path = "vendor/ksni" }

@@ -1,0 +1,289 @@
+// Lull's one window. It holds no audio and decides nothing: Rust sets the properties and hears the callbacks.
+
+import "fonts/BarlowCondensed-Medium.ttf";
+import "fonts/IBMPlexMono-Regular.ttf";
+import { Theme } from "theme.slint";
+import { PlayButton, Slider, SoundsButton } from "controls.slint";
+import { SoundsSheet, SoundRow } from "sounds.slint";
+
+export { SoundRow }
+
+export global Format {
+    pure callback clock(int) -> string;
+}
+
+export component AppWindow inherits Window {
+    title: "Lull";
+    width: Theme.width;
+    height: Theme.height;
+    background: Theme.ground;
+    default-font-family: Theme.body;
+
+    in property <image> ring;
+    in property <color> tone: #98bc66;
+    in property <bool> has-sound;
+    in property <bool> playing;
+    in property <string> heading;
+    in property <string> detail;
+    in property <bool> alert;
+    in property <int> seconds;
+    in property <int> total;
+    in property <int> volume;
+    in property <[SoundRow]> sounds;
+    out property <bool> sheet-open;
+
+    callback set-playing(bool);
+    callback seek(int);
+    callback set-volume(int);
+    callback list-sounds();
+    callback open-sound(int);
+    callback quit();
+    // Rust calls this when messages are waiting for the UI thread.
+    callback inbox-ready();
+
+    property <int> cursor;
+    // Focus rings show only for people using the keyboard.
+    property <bool> keyboard;
+
+    forward-focus: keys;
+    init => { keys.focus(); }
+
+    function toggle() {
+        if root.has-sound {
+            root.set-playing(!root.playing);
+        }
+    }
+    function nudge(by: int) {
+        if root.has-sound {
+            root.seek(clamp(root.seconds + by, 0, root.total));
+        }
+    }
+    function louder(by: int) {
+        root.set-volume(clamp(root.volume + by, 0, 100));
+    }
+    function show-sheet(show: bool) {
+        root.sheet-open = show;
+        if show {
+            root.cursor = 0;
+            root.list-sounds();
+        }
+        keys.focus();
+    }
+    function choose(index: int) {
+        if index >= 0 && index < root.sounds.length && root.sounds[index].playable {
+            if !root.sounds[index].current {
+                root.open-sound(index);
+            }
+            root.show-sheet(false);
+        }
+    }
+
+    keys := FocusScope {
+        capture-key-pressed(event) => {
+            if event.text == Key.Tab || event.text == Key.Backtab {
+                root.keyboard = true;
+                if root.sheet-open {
+                    root.show-sheet(false);
+                }
+                return reject;
+            }
+            if event.text == Key.Escape {
+                if seek-bar.cancel() || volume-bar.cancel() {
+                    return accept;
+                }
+                if root.sheet-open {
+                    root.show-sheet(false);
+                    return accept;
+                }
+                root.keyboard = false;
+                keys.focus();
+                return accept;
+            }
+            if event.modifiers.control && (event.text == "q" || event.text == "Q") {
+                root.quit();
+                return accept;
+            }
+            if root.sheet-open {
+                if event.text == Key.DownArrow || event.text == Key.UpArrow {
+                    root.keyboard = true;
+                    root.cursor = clamp(root.cursor + (event.text == Key.DownArrow ? 1 : -1), 0, max(0, root.sounds.length - 1));
+                    sheet.reveal();
+                    return accept;
+                }
+                if event.text == Key.Return || event.text == Key.Space {
+                    if !event.repeat {
+                        root.choose(root.cursor);
+                    }
+                    return accept;
+                }
+            }
+            return reject;
+        }
+        // Reached only when the focused control didn't use the key.
+        key-pressed(event) => {
+            if event.text == Key.Space {
+                if !event.repeat {
+                    root.toggle();
+                }
+                return accept;
+            }
+            if event.text == Key.LeftArrow {
+                root.nudge(-30);
+                return accept;
+            }
+            if event.text == Key.RightArrow {
+                root.nudge(30);
+                return accept;
+            }
+            if event.text == Key.UpArrow {
+                root.louder(5);
+                return accept;
+            }
+            if event.text == Key.DownArrow {
+                root.louder(-5);
+                return accept;
+            }
+            return reject;
+        }
+
+        Image {
+            x: Theme.ring-left;
+            y: Theme.ring-top;
+            width: Theme.ring-size;
+            height: Theme.ring-size;
+            source: root.ring;
+        }
+        Text {
+            x: Theme.s6;
+            y: Theme.mark-top;
+            text: "LULL";
+            font-family: Theme.display;
+            font-size: Theme.mark-size;
+            font-weight: Theme.medium;
+            letter-spacing: Theme.s1;
+            color: Theme.quiet;
+        }
+        Text {
+            x: Theme.s6;
+            y: Theme.title-top;
+            width: Theme.width - Theme.s6 - Theme.s3 - Theme.sounds-width;
+            text: root.heading.to-uppercase();
+            overflow: elide;
+            wrap: no-wrap;
+            font-family: Theme.display;
+            font-size: Theme.title-size;
+            font-weight: Theme.medium;
+            color: Theme.ink;
+            accessible-role: text;
+            accessible-label: root.heading;
+        }
+        Text {
+            x: Theme.s6;
+            y: Theme.detail-top;
+            width: Theme.width - 2 * Theme.s6;
+            text: root.detail;
+            overflow: elide;
+            wrap: no-wrap;
+            font-family: Theme.body;
+            font-size: Theme.body-size;
+            color: root.alert ? Theme.ink : Theme.quiet;
+            accessible-role: text;
+            accessible-label: root.detail;
+        }
+        SoundsButton {
+            x: Theme.width - self.width - Theme.s3;
+            y: Theme.sounds-top;
+            expanded: root.sheet-open;
+            show-focus: root.keyboard;
+            activated => { root.show-sheet(!root.sheet-open); }
+        }
+        seek-bar := Slider {
+            x: Theme.s6 - Theme.thumb / 2;
+            y: Theme.seek-top;
+            width: Theme.width - 2 * self.x;
+            value: root.seconds;
+            maximum: root.total;
+            step: 30;
+            enabled: root.has-sound;
+            show-focus: root.keyboard;
+            tone: root.tone;
+            label: "Position";
+            value-text: Format.clock(self.shown);
+            committed(to) => { root.seek(to); }
+        }
+        Text {
+            visible: root.has-sound;
+            x: Theme.s6;
+            y: Theme.time-top;
+            text: Format.clock(seek-bar.shown);
+            font-family: Theme.mono;
+            font-size: Theme.time-size;
+            color: seek-bar.dragging ? Theme.ink : Theme.quiet;
+        }
+        Text {
+            visible: root.has-sound;
+            x: Theme.width - Theme.s6 - self.width;
+            y: Theme.time-top;
+            text: Format.clock(root.total);
+            font-family: Theme.mono;
+            font-size: Theme.time-size;
+            color: Theme.quiet;
+        }
+        PlayButton {
+            x: Theme.s6;
+            y: Theme.play-top;
+            playing: root.playing;
+            enabled: root.has-sound;
+            show-focus: root.keyboard;
+            tone: root.tone;
+            activated => { root.toggle(); }
+        }
+        Text {
+            x: Theme.volume-left;
+            y: Theme.volume-label-top;
+            text: "Volume";
+            font-family: Theme.body;
+            font-size: Theme.label-size;
+            color: Theme.quiet;
+        }
+        Text {
+            x: Theme.width - Theme.s6 - self.width;
+            y: Theme.volume-label-top;
+            text: volume-bar.shown + "%";
+            font-family: Theme.mono;
+            font-size: Theme.time-size;
+            color: Theme.ink;
+        }
+        volume-bar := Slider {
+            x: Theme.volume-left - Theme.thumb / 2;
+            y: Theme.volume-top;
+            width: Theme.width - Theme.s6 + Theme.thumb / 2 - self.x;
+            value: root.volume;
+            step: 5;
+            show-focus: root.keyboard;
+            tone: root.tone;
+            label: "Volume";
+            value-text: self.shown + "%";
+            previewed(to) => { root.set-volume(to); }
+            committed(to) => { root.set-volume(to); }
+        }
+        // Closes the list on a press anywhere else, without also pressing what was under it.
+        if root.sheet-open: TouchArea {
+            pointer-event(event) => {
+                if event.kind == PointerEventKind.down {
+                    root.show-sheet(false);
+                }
+            }
+        }
+        sheet := SoundsSheet {
+            visible: root.sheet-open;
+            x: Theme.s3;
+            y: Theme.sheet-bottom - self.height;
+            sounds: root.sounds;
+            tone: root.tone;
+            show-focus: root.keyboard;
+            cursor <=> root.cursor;
+            chosen(index) => { root.choose(index); }
+        }
+    }
+}
