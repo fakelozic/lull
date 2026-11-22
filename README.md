@@ -74,3 +74,16 @@ scripts/window-e2e.sh  # both processes on private displays. Silent and invisibl
 - [The D-Bus API and its limits](docs/api.md)
 - [Operations: logs and fixes](docs/operations.md)
 - [Testing](docs/testing.md)
+
+## License
+Lull is free software: [GPL-3.0-only](LICENSE). Copyright (C) 2026 fakelozic. It comes with no warranty.
+
+Included work by others keeps its own license:
+
+| Part | License |
+|---|---|
+| `vendor/zbus` (patched) | [MIT](vendor/zbus/LICENSE) |
+| `vendor/ksni` (patched) | [Unlicense](vendor/ksni/UNLICENSE) |
+| `ui/fonts` | [SIL Open Font License](ui/fonts/LICENSES.txt) |
+
+The window is built with [Slint](https://slint.dev), used under GPL-3.0-only.
