@@ -2,6 +2,11 @@
 
 Newest first.
 
+## 2026-11-23: The app icon is a solid Spectrum disc
+- **Decision:** a thick Spectrum ring filling the standard icon disc (83% of the canvas), dark centre, white dot.
+- **Why:** the dark disc vanished on a dark panel, so the icon looked much smaller than the ones beside it.
+- **Unchanged:** the tray icon, which Lull draws itself (`src/remote/icon.rs`).
+
 ## Two vendored crates with small patches
 From attacking the new D-Bus surface.
 - **Found:** one 16 MB message took Lull to 38.6 MB for good (128 MB is allowed), 800 medium ones to 110 MB, and
